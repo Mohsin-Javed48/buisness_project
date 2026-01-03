@@ -18,10 +18,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  isVarified: {
-    type: Boolean,
-    default: false,
-  },
 });
 
 module.exports = mongoose.model("User", userSchema);

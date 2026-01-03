@@ -1,62 +1,70 @@
 const express = require("express");
 const User = require("../models/user");
 const bcrypt = require("bcryptjs");
-
 const postLogin = (req, res, next) => {
   const email = req.body.email;
-  const userPassword = req.body.password;
+  const password = req.body.password;
 
-  User.findOne({ email: email })
+  User.findOne({ email })
     .then((user) => {
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(401).json({ message: "Invalid email or password" });
       }
-      bcrypt.compare(userPassword, user.password).then((doMatch) => {
-        if (doMatch) {
-          return res.status(200).json({ message: "Login successful" });
+
+      // Compare password
+      bcrypt.compare(password, user.password, (err, isMatch) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ message: "An error occurred" });
         }
-        return res.status(401).json({ message: "Invalid password" });
+
+        if (!isMatch) {
+          return res.status(401).json({ message: "Invalid email or password" });
+        }
+
+        // ✅ Create session
+        req.session.isLoggedIn = true;
+        req.session.user = {
+          _id: user._id.toString(),
+          email: user.email,
+        };
+
+        req.session.save((err) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).json({ message: "Session save failed" });
+          }
+          return res.status(200).json({ message: "Login successful" });
+        });
       });
     })
     .catch((err) => {
-      console.log(err);
-      res.status(500).json({ message: "An error occurred" });
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
     });
 };
 
-const postSignup = (req, res, next) => {
-  const name = req.body.name;
-  const email = req.body.email;
-  const userPassword = req.body.password;
-  const confirmPassword = req.body.confirmPassword;
+const postSignup = async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
 
-  User.findOne({ email: email }).then((user) => {
-    if (user) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(409).json({ message: "User already exists" });
     }
-    if (userPassword === confirmPassword) {
-      bcrypt.hash(userPassword, 12).then((hashedPassword) => {
-        User.create({
-          name: name,
-          email: email,
-          password: hashedPassword,
-          role: "user",
-          isVerified: false,
-        })
-          .then((result) => {
-            return res
-              .status(201)
-              .json({ message: "User created successfully" });
-          })
-          .catch((err) => {
-            console.log(err);
-            res.status(500).json({ message: "Error creating user" });
-          });
-      });
-    } else {
-      return res.status(400).json({ message: "Passwords do not match" });
-    }
-  });
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: "user",
+    });
+    return res.status(201).json({ message: "User created successfully" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error creating user" });
+  }
 };
 
 module.exports = {
