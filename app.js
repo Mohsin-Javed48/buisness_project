@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
@@ -5,7 +6,7 @@ const path = require("path");
 const cors = require("cors");
 const session = require("express-session");
 const MongoDBStore = require("connect-mongodb-session")(session);
-require("dotenv").config();
+// const csurf = require("csurf");
 
 const userRouter = require("./routes/user");
 
@@ -18,6 +19,7 @@ app.use(
   })
 );
 
+// app.use(csurf());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "public")));
