@@ -13,10 +13,10 @@ const userRouter = require("./routes/user");
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3000", // frontend URL
+    origin: "*", // frontend URL
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true, // if you are using cookies or sessions
-  })
+  }),
 );
 
 // app.use(csurf());
@@ -30,25 +30,15 @@ const store = new MongoDBStore({
   collection: "sessions",
 });
 
-// Session middleware (🔥 MUST be before routes)
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    store: store,
-  })
-);
-
 // Routes
-app.use("/api/user", userRouter);
+app.use("/user", userRouter);
 
 // DB connection
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
-    app.listen(8000, () => {
-      console.log("Server running on port 8000");
+    app.listen(process.env.PORT || 8080, () => {
+      console.log(`Server running on port ${process.env.PORT || 8080}`);
     });
   })
   .catch((err) => console.log(err));
