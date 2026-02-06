@@ -1,9 +1,13 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const bcrypt = require("bcryptjs");
+
 const postLogin = (req, res, next) => {
-  const email = req.body.email;
-  const password = req.body.password;
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required" });
+  }
 
   User.findOne({ email })
     .then((user) => {
@@ -22,20 +26,13 @@ const postLogin = (req, res, next) => {
           return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        // ✅ Create session
-        req.session.isLoggedIn = true;
-        req.session.user = {
-          _id: user._id.toString(),
-          email: user.email,
-        };
-
-        req.session.save((err) => {
-          if (err) {
-            console.error(err);
-            return res.status(500).json({ message: "Session save failed" });
-          }
-          return res.status(200).json({ message: "Login successful" });
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+          expiresIn: "1h",
         });
+
+        return res
+          .status(200)
+          .json({ message: "Login successful", token, user });
       });
     })
     .catch((err) => {
@@ -47,6 +44,7 @@ const postLogin = (req, res, next) => {
 const postSignup = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
+    console.log("Signup request received:", { name, email });
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -60,6 +58,7 @@ const postSignup = async (req, res, next) => {
       password: hashedPassword,
       role: "user",
     });
+
     return res.status(201).json({ message: "User created successfully" });
   } catch (err) {
     console.log(err);
@@ -67,7 +66,13 @@ const postSignup = async (req, res, next) => {
   }
 };
 
+const postLogout = (req, res, next) => {
+  // Since JWT is stateless, logout can be handled on the client side by deleting the token
+  return res.status(200).json({ message: "Logout successful" });
+};
+
 module.exports = {
   postLogin,
   postSignup,
+  postLogout,
 };
